@@ -20,6 +20,6 @@ b_daily = gsub(b,pattern = "-", replacement = "")
 b_monthly = sub("^(\\d{6}).*$", "\\1", b_daily)
 b_hourly = paste0(b_daily,year_2017)
 # return it in a data frame
-regulating_prices_2017 = data.frame(date_monthly = b_monthly, date_daily = b, date_hourly = b_hourly, DK1_UP = regulating_prices_2017$Up__10[1:(length(regulating_prices_2017$Up__10)-1)],
+regulating_prices_2017 = data.frame(date_monthly = b_monthly, date_daily = b_daily, date_hourly = b_hourly, DK1_UP = regulating_prices_2017$Up__10[1:(length(regulating_prices_2017$Up__10)-1)],
                                     DK1_DOWN = regulating_prices_2017$Down__10[1:(length(regulating_prices_2017$Down__10)-1)])
 

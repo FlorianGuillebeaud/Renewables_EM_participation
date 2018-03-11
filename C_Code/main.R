@@ -25,6 +25,18 @@ legend("bottomleft", legend = c(paste0("2016 / mean price : ", round(mean(elspot
                                 paste0("2017 / mean price : ", round(mean(elspot_price_2017$DK1[1:N], na.rm = TRUE), digits = 2), " DKK/MWh")), col = c("black", "blue"), lty = 1)
 title(main = "Electricity Spot Price in DK1")
 
+
+###################################
+###################################
+## compute key figures for regulation prices DKK/MWh
+
+# average up and down regulations costs
+down_reg_av_2016 = mean(regulating_prices_2016$DK1_DOWN, na.rm=TRUE)
+up_reg_av_2016 = mean(regulating_prices_2016$DK1_UP, na.rm=TRUE)
+
+down_reg_av_2017 = mean(regulating_prices_2017$DK1_DOWN, na.rm=TRUE)
+up_reg_av_2017 = mean(regulating_prices_2017$DK1_UP, na.rm=TRUE)
+
 ###################################
 ###################################
 

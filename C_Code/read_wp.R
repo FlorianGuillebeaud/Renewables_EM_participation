@@ -1,4 +1,13 @@
+## Assignment 2 ## 
+## Renewables in electricity market ## 
+## Author : Florian Guillebeaud ## 
+###################################
+###################################
+
 # Read wind power forecast file
+
+###################################
+###################################
 data_wp = read.table("D_Data/windpowerforecasts.dat", skip = 0, sep = ";")
 
 # Rename the column with the 10th quantile / use the first line as colnames / delete first line

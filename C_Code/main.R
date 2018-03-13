@@ -12,7 +12,7 @@ setwd("~/Documents/DTU/B_Semester-2/31761_Renew_ElectricityMarkets/Assignments/A
 source("C_Code/read_wp.R") # ! quantities in kW
 source("C_Code/read_elspot.R") # ! price is given in DKK/MWh
 source("C_Code/read_regulations.R")
-source("C_Code/balancing_revenues.R")
+source("C_Code/balancing.R")
 
 ###################################
 ###################################

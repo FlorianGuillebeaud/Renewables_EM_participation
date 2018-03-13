@@ -32,35 +32,142 @@ balancing = function(contracted, measure, schedule, reg_up, reg_down)
   surplus = shortage = 0 # count
   down_regulation_costs = up_regulation_costs = 0 # count
   
-  for (i in 1:length(contracted)){
-    if (is.na(schedule[i])== FALSE){ #we are scheduled !
-      
-      if (contracted[i] < measure[i]){
-      # over-production
-      hours_helpg_syst = hours_helpg_syst + 1 
-      extra_energy = measure[i]-contracted[i]
-      revenues[i] = measure[i]*schedule[i] + extra_energy*reg_down[i] # sold => +
-      
-      down_regulation_costs = down_regulation_costs + extra_energy*reg_down[i]
-      surplus = surplus + extra_energy
-    } else if (contracted[i] > measure[i]){
-      # under-production
-      hours_handicp_syst = hours_handicp_syst + 1
-      missing_energy = contracted[i]-measure[i]
-      revenues[i] = measure[i]*schedule[i] - missing_energy*reg_up[i] # bought => -
-      
-      up_regulation_costs = up_regulation_costs + missing_energy*reg_up[i]
-      shortage = shortage + missing_energy
-      
-    } else {
-      hours_helpg_syst = hours_helpg_syst + 1
-      well_spotted = well_spotted + 1
-      revenues[i] = contracted[i]*schedule[i] # contracted = measurements
-    }
-    }else{
-      revenues[i] = NA
-    }
-  } 
+  for (k in 1:length(contracted))
+  {
+    if (is.na(schedule[k])== FALSE)
+    { # we are scheduled => let's see the revenues!
+      #cat(paste0("We are contracted : ", k , "/ ", length(contracted)), "\n")
+      if( (schedule[k] == reg_up[k]) & (schedule[k] == reg_down[k])) # balance
+      {
+        #cat(paste0("Perfect global balance / "))
+        balancing_price = schedule[k]
+        #cat(paste0("balancing price = ", balancing_price), "\n")
+        
+        if (contracted[k] < measure[k])
+        {
+          # local surplus
+          hours_helpg_syst = hours_helpg_syst + 1 
+          extra_energy = measure[k]-contracted[k]
+          revenues[k] = contracted[k]*schedule[k] + extra_energy*balancing_price # sold => +
+          
+          down_regulation_costs = down_regulation_costs + extra_energy*balancing_price
+          surplus = surplus + extra_energy
+        } 
+        else if (contracted[k] > measure[k])
+        {
+          # local shortage 
+          hours_handicp_syst = hours_handicp_syst + 1
+          missing_energy = contracted[k]-measure[k]
+          revenues[k] = contracted[k]*schedule[k] - missing_energy*balancing_price # bought => -
+          
+          up_regulation_costs = up_regulation_costs + missing_energy*balancing_price
+          shortage = shortage + missing_energy
+        } 
+        else 
+        {
+          # I am "helping"
+          hours_helpg_syst = hours_helpg_syst + 1
+          well_spotted = well_spotted + 1
+          revenues[k] = contracted[k]*balancing_price
+        } 
+        
+        
+      }else if((schedule[k] < reg_up[k]) & (schedule[k] > reg_down[k]))  
+      {
+        # weird situation where during one hour syst is both short and long
+        #cat(paste0("both reg up and down at : ", k), "\n")
+        if (contracted[k] < measure[k]){
+          # surplus : reg_down
+          balancing_price = reg_down[k]
+          #cat(paste0("balancing price = ", balancing_price), "\n")
+          
+          hours_helpg_syst = hours_helpg_syst + 1 
+          extra_energy = measure[k]-contracted[k]
+          revenues[k] = contracted[k]*schedule[k] + extra_energy*balancing_price # sold => +
+          
+          down_regulation_costs = down_regulation_costs + extra_energy*balancing_price
+          surplus = surplus + extra_energy
+        } else if (contracted[k] > measure[k]){
+          # shortage : reg_up
+          balancing_price = reg_up[k]
+          
+          hours_handicp_syst = hours_handicp_syst + 1
+          missing_energy = contracted[k]-measure[k]
+          revenues[k] = contracted[k]*schedule[k] - missing_energy*balancing_price # bought => -
+          
+          up_regulation_costs = up_regulation_costs + missing_energy*balancing_price
+          shortage = shortage + missing_energy
+        } else {
+          # I am "helping"
+          hours_helpg_syst = hours_helpg_syst + 1
+          well_spotted = well_spotted + 1
+          revenues[k] = contracted[k]*schedule[k]
+        }
+      }else if(schedule[k] < reg_up[k]) # shortage 
+      {
+        # overall system in shortage => blancing price = reg_up price
+        balancing_price = reg_up[k]
+        #cat(paste0(i, " - sys shortage - balancing_price / ", balancing_price), "\n")
+        
+        if (contracted[k] < measure[k]){
+          # surplus : I am helping => will NOT rewarded 
+
+          hours_helpg_syst = hours_helpg_syst + 1 
+          extra_energy = measure[k]-contracted[k]
+          revenues[k] = contracted[k]*schedule[k] + extra_energy*schedule[k] 
+          
+          down_regulation_costs = down_regulation_costs + extra_energy*schedule[k]
+          surplus = surplus + extra_energy
+        } else if (contracted[k] > measure[k]){
+          # shortage : I am NOT helping => will get penalized 
+          hours_handicp_syst = hours_handicp_syst + 1
+          missing_energy = contracted[k]-measure[k]
+          revenues[k] = contracted[k]*schedule[k] - missing_energy*balancing_price # bought => -
+          
+          up_regulation_costs = up_regulation_costs + missing_energy*balancing_price
+          shortage = shortage + missing_energy
+        } else {
+          # I am "helping"
+          hours_helpg_syst = hours_helpg_syst + 1
+          well_spotted = well_spotted + 1
+          revenues[k] = contracted[k]*schedule[k]
+        }
+      }else if (schedule[k] > reg_down[k]) # surplus
+      {
+        # overall system in surplus => balancing price = reg_down price
+        balancing_price = reg_down[k]      
+        #cat(paste0(k, " - sys surplus - balancing_price / ", balancing_price), "\n")
+        
+        
+        if (contracted[k] < measure[k]){
+          # surplus : I am NOT helping => will get penalized
+          hours_helpg_syst = hours_helpg_syst + 1 
+          extra_energy = measure[k]-contracted[k]
+          revenues[k] = contracted[k]*schedule[k] + extra_energy*balancing_price # sold => +
+          
+          down_regulation_costs = down_regulation_costs + extra_energy*balancing_price
+          surplus = surplus + extra_energy
+        } else if (contracted[k] > measure[k]){
+          # shortage : I am not helping => will get penalized 
+          hours_handicp_syst = hours_handicp_syst + 1
+          missing_energy = contracted[k]-measure[k]
+          revenues[k] = contracted[k]*schedule[k] - missing_energy*schedule[k] # bought => -
+          
+          up_regulation_costs = up_regulation_costs + missing_energy*schedule[k]
+          shortage = shortage + missing_energy
+        } else {
+          # I am "helping" / not rewarded
+          hours_helpg_syst = hours_helpg_syst + 1
+          well_spotted = well_spotted + 1
+          revenues[k] = contracted[k]*schedule[k]
+        }
+      }else 
+      {
+        revenues[k] = NA
+        #cat(paste0("I am not schedule : ", k))
+      } # we are NOT scheduled => no revenues ! 
+    } 
+  }
   results = list(revenues = revenues, 
                  surplus = surplus,
                  shortage = shortage,
@@ -71,3 +178,8 @@ balancing = function(contracted, measure, schedule, reg_up, reg_down)
                  well_spotted = well_spotted)
   return(results)
 }
+
+
+
+
+

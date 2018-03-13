@@ -30,12 +30,15 @@ source("C_Code/performance_ratio.R")
 # 2016-12-31 At 12:00 we bid for the next day 2017-01-01 energy as block unit to be scheduled from 00:00 to 00:00 
 # the forecast is made at 11:00 and 12:00
 
+###################################
+###################################
+
 revenues = matrix(0,nrow = 1, ncol = 24)
 balancing_quantities =  matrix(0,nrow = 1, ncol = 5)
 hours_helpg_syst = hours_handicp_syst = 0 
 
 # since we bid at 12:00 the forecasted amount, we have access at closest to
-# the forecast made at 11:00 the day before  
+# the forecast made at 11:00 the d-day   
 dati_temp = matrix(noquote(unique(data_wp$dati)), nrow = length(unique(data_wp$dati)), ncol =1 )
 dati_to_consider <- dati_temp[seq(1, length(dati_temp), 2)] # when the forecast is issued 
 
@@ -58,12 +61,23 @@ for (i in 1:(length(dati_to_consider)-1)){
   date_bidded = as.numeric(matrix(noquote(wp_next_day$date_daily[1])),1,1)
   
   # Quantity Bid # 
-  ## since we bid what forecasted ##
+  ## We bid what forecasted ##
   # contracted = as.numeric(wp_next_day$fore)/10^3 # MWh
-  ## perfect forecast ## 
+  ## Perfect forecast ## 
   # contracted = as.numeric(wp_next_day$meas)/10^3 # MWh
-  ## persistence forecast (using the last measured power value at 11h)
-  # contracted = rep(as.numeric(matrix(data_wp$meas[(index_next_day-2)], 1,1)), 24)
+  ## Persistence forecast (using the last measured power value at 11h)
+  # if (i==1) {
+  #   # We don't the data for this day / we consider the forecast
+  #   temp_quantity = as.numeric(matrix(noquote(wp_next_day$fore[1]),1,1))
+  #   contracted = rep(temp_quantity/10^3,24)
+  # }else
+  # {
+  #   # We take the last measured power value at 11h
+  #   index_last_meas = index_next_day-28-1 
+  #   contracted = rep(as.numeric(matrix(noquote(data_wp[index_last_meas,]$meas),1,1))/10^3,24)
+  # }
+  ## Random bid
+  contracted = runif(24,0,20) # MW
   
   # in case of NA values
   contracted[is.na(contracted)] <- 0

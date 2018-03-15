@@ -168,6 +168,7 @@ balancing = function(contracted, measure, schedule, reg_up, reg_down)
       } # we are NOT scheduled => no revenues ! 
     } 
   }
+  
   results = list(revenues = revenues, 
                  surplus = surplus,
                  shortage = shortage,

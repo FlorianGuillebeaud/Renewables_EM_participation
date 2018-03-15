@@ -12,7 +12,42 @@ setwd("~/Documents/DTU/B_Semester-2/31761_Renew_ElectricityMarkets/Assignments/A
 source("C_Code/read_wp.R") # ! quantities in kW
 source("C_Code/read_elspot.R") # ! price is given in DKK/MWh
 source("C_Code/read_regulations.R")
+
+source("C_Code/get_schedule.R")
 source("C_Code/balancing.R")
+source("C_Code/performance_ratio.R")
+
+source("C_Code/scenario_output.R")
+
+###################################
+## Quantity Bid ## 
+###################################
+
+## Scenario 1 : We bid what forecasted ##
+scenario1 = scenario_output(1, data_wp, elspot_price_2017, regulating_prices_2017, plot_results = TRUE)
+
+## Scenario 2 : Perfect forecast ## 
+scenario2 = scenario_output(2, data_wp, elspot_price_2017, regulating_prices_2017, plot_results = TRUE)
+
+## Scenario 3 : Persistence forecast (using the last measured power value at 11h)
+scenario3 = scenario_output(3, data_wp, elspot_price_2017, regulating_prices_2017, plot_results = FALSE)
+
+## Scenario 4 : Random bid between 0 and 20 MW
+scenario4 = scenario_output(4, data_wp, elspot_price_2017, regulating_prices_2017, plot_results = FALSE)
+
+## Scenario 5 : We bid a constant amount based on an estimated CF ## 
+scenario5 = scenario_output(5, data_wp, elspot_price_2017, regulating_prices_2017, plot_results = TRUE)
+
+
+
+##################################
+## Post traitement Scenarios ## 
+###################################
+
+scenario2$
+
+
+
 
 ###################################
 ###################################
@@ -48,8 +83,8 @@ year = noquote(sub("^(\\d{4}).*$", "\\1", date))
 reg_date_up = eval(parse(text = paste0("regulating_prices_",year,"[regulating_prices_",year,"$date_daily==date,]$DK1_UP")))
 reg_date_down = eval(parse(text = paste0("regulating_prices_",year,"[regulating_prices_",year,"$date_daily==date,]$DK1_DOWN")))
 price_date = eval(parse(text = paste0("elspot_price_",year,"[elspot_price_",year,"$date_daily==date,]$DK1")))
-wind_fore_date = eval(parse(text = paste0("wind_power_",year,"[wind_power_",year,"$date_daily==date,]$fore")))
-wind_meas_date = eval(parse(text = paste0("wind_power_",year,"[wind_power_",year,"$date_daily==date,]$meas")))
+wind_fore_date = eval(data_wp[data_wp$date_daily==date,]$fore)
+wind_meas_date = eval(data_wp[data_wp$date_daily==date,]$meas)
 
 # Balancing Price market for this date
 plot(price_date,type = "o", ylim = c(min(reg_date_up,reg_date_down, price_date, na.rm = TRUE), max(reg_date_up, reg_date_down, price_date, na.rm = TRUE)),
@@ -59,19 +94,6 @@ points(reg_date_down, col ="red", type ="o", lty = 2)
 legend("topleft", legend = c("Spot price", "Up-reg. price", "Down-reg. price"), 
        col = c("black", "blue", "red"), lty = c(1,2,2), cex = 0.75, lwd = c(2,1,1))
 title(main = paste0("Prices the : ", date))
-
-# Wind prduction for this date 
-plot(1:24, wind_fore_date/10^3, type = "o",
-     ylim = c(0,max(wind_fore_date/10^3,wind_meas_date/10^3)), 
-     xlab = "Hour of the day [h]", ylab = "[MWh]")
-lines(1:24, wind_meas_date/10^3, col = "blue", type = "o")
-par(xpd=TRUE)
-legend(list(x = 0,y = 2), legend = c("forecasted", "measured"), col = c("black", "blue"), lty = 1, cex = 0.75, lwd = 2)
-title(main = paste0("Wind power production : ", date))
-
-#
-balancing_revenues(forecast = wind_fore_date/10^3, measure = wind_meas_date/10^3,
-                   spot_price = price_date, reg_up = reg_date_up, reg_down = reg_date_down)
 
 
 # in March 2017 : YYYYMM
@@ -100,4 +122,6 @@ title(main = paste0("Wind power production in : ", date))
 legend(list(x = 0,y = 2), legend = c("forecasted", "measured"), col = c("black", "blue"), lty = c(1,2), cex = 0.75, lwd = 2)
 title(main = paste0("Wind power production : ", date))
 
+
+####
 

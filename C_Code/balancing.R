@@ -16,7 +16,7 @@
 # reg_up : up regulation price for the N hours (/hourly)
 # reg_down : down regulation price for the N hours (/hourly)
 
-balancing = function(contracted, measure, schedule, reg_up, reg_down)
+balancing = function(day, contracted, measure, schedule, reg_up, reg_down)
 {
   # make sure everything is numerical
   contracted = as.numeric(contracted)
@@ -25,7 +25,7 @@ balancing = function(contracted, measure, schedule, reg_up, reg_down)
   reg_down = as.numeric(reg_down)
   
   # initialisation 
-  revenues = vector(length = length(contracted))
+  revenues = ba_revenue = da_revenue = vector(length = length(contracted))
   hours_helpg_syst = 0 # count
   hours_handicp_syst = 0 # count
   well_spotted = 0 # count
@@ -48,7 +48,10 @@ balancing = function(contracted, measure, schedule, reg_up, reg_down)
           # local surplus
           hours_helpg_syst = hours_helpg_syst + 1 
           extra_energy = measure[k]-contracted[k]
-          revenues[k] = contracted[k]*schedule[k] + extra_energy*balancing_price # sold => +
+          
+          da_revenue[k] = contracted[k]*schedule[k]
+          ba_revenue[k] = extra_energy*balancing_price
+          revenues[k] = da_revenue[k] + ba_revenue[k] # sold => +
           
           down_regulation_costs = down_regulation_costs + extra_energy*balancing_price
           surplus = surplus + extra_energy
@@ -58,7 +61,10 @@ balancing = function(contracted, measure, schedule, reg_up, reg_down)
           # local shortage 
           hours_handicp_syst = hours_handicp_syst + 1
           missing_energy = contracted[k]-measure[k]
-          revenues[k] = contracted[k]*schedule[k] - missing_energy*balancing_price # bought => -
+          
+          da_revenue[k] = contracted[k]*schedule[k]
+          ba_revenue[k] = - missing_energy*balancing_price # bought => -
+          revenues[k] = da_revenue[k] + ba_revenue[k]
           
           up_regulation_costs = up_regulation_costs + missing_energy*balancing_price
           shortage = shortage + missing_energy
@@ -68,9 +74,11 @@ balancing = function(contracted, measure, schedule, reg_up, reg_down)
           # I am "helping"
           hours_helpg_syst = hours_helpg_syst + 1
           well_spotted = well_spotted + 1
-          revenues[k] = contracted[k]*balancing_price
+          
+          da_revenue[k] = contracted[k]*balancing_price
+          ba_revenue[k] = 0
+          revenues[k] = da_revenue[k]  # bought => -
         } 
-        
         
       }else if((schedule[k] < reg_up[k]) & (schedule[k] > reg_down[k]))  
       {
@@ -83,7 +91,10 @@ balancing = function(contracted, measure, schedule, reg_up, reg_down)
           
           hours_helpg_syst = hours_helpg_syst + 1 
           extra_energy = measure[k]-contracted[k]
-          revenues[k] = contracted[k]*schedule[k] + extra_energy*balancing_price # sold => +
+          
+          da_revenue[k] = contracted[k]*schedule[k]
+          ba_revenue[k] = extra_energy*balancing_price
+          revenues[k] = da_revenue[k] + ba_revenue[k] # sold => +
           
           down_regulation_costs = down_regulation_costs + extra_energy*balancing_price
           surplus = surplus + extra_energy
@@ -93,7 +104,10 @@ balancing = function(contracted, measure, schedule, reg_up, reg_down)
           
           hours_handicp_syst = hours_handicp_syst + 1
           missing_energy = contracted[k]-measure[k]
-          revenues[k] = contracted[k]*schedule[k] - missing_energy*balancing_price # bought => -
+          
+          da_revenue[k] = contracted[k]*schedule[k]
+          ba_revenue[k] = - missing_energy*balancing_price # bought => -
+          revenues[k] = da_revenue[k] + ba_revenue[k]
           
           up_regulation_costs = up_regulation_costs + missing_energy*balancing_price
           shortage = shortage + missing_energy
@@ -101,7 +115,11 @@ balancing = function(contracted, measure, schedule, reg_up, reg_down)
           # I am "helping"
           hours_helpg_syst = hours_helpg_syst + 1
           well_spotted = well_spotted + 1
-          revenues[k] = contracted[k]*schedule[k]
+          
+          da_revenue[k] = contracted[k]*schedule[k]
+          ba_revenue[k] = 0
+          revenues[k] = da_revenue[k]  # bought => -
+          
         }
       }else if(schedule[k] < reg_up[k]) # shortage 
       {
@@ -111,10 +129,13 @@ balancing = function(contracted, measure, schedule, reg_up, reg_down)
         
         if (contracted[k] < measure[k]){
           # surplus : I am helping => will NOT rewarded 
-
+          
           hours_helpg_syst = hours_helpg_syst + 1 
           extra_energy = measure[k]-contracted[k]
-          revenues[k] = contracted[k]*schedule[k] + extra_energy*schedule[k] 
+          
+          da_revenue[k] = contracted[k]*schedule[k]
+          ba_revenue[k] = extra_energy*schedule[k]
+          revenues[k] = da_revenue[k] + ba_revenue[k] # sold => +
           
           down_regulation_costs = down_regulation_costs + extra_energy*schedule[k]
           surplus = surplus + extra_energy
@@ -122,7 +143,10 @@ balancing = function(contracted, measure, schedule, reg_up, reg_down)
           # shortage : I am NOT helping => will get penalized 
           hours_handicp_syst = hours_handicp_syst + 1
           missing_energy = contracted[k]-measure[k]
-          revenues[k] = contracted[k]*schedule[k] - missing_energy*balancing_price # bought => -
+          
+          da_revenue[k] = contracted[k]*schedule[k]
+          ba_revenue[k] = - missing_energy*balancing_price # bought => -
+          revenues[k] = da_revenue[k] + ba_revenue[k]
           
           up_regulation_costs = up_regulation_costs + missing_energy*balancing_price
           shortage = shortage + missing_energy
@@ -130,7 +154,10 @@ balancing = function(contracted, measure, schedule, reg_up, reg_down)
           # I am "helping"
           hours_helpg_syst = hours_helpg_syst + 1
           well_spotted = well_spotted + 1
-          revenues[k] = contracted[k]*schedule[k]
+          
+          da_revenue[k] = contracted[k]*schedule[k]
+          ba_revenue[k] = 0
+          revenues[k] = da_revenue[k]  # bought => -
         }
       }else if (schedule[k] > reg_down[k]) # surplus
       {
@@ -143,7 +170,10 @@ balancing = function(contracted, measure, schedule, reg_up, reg_down)
           # surplus : I am NOT helping => will get penalized
           hours_helpg_syst = hours_helpg_syst + 1 
           extra_energy = measure[k]-contracted[k]
-          revenues[k] = contracted[k]*schedule[k] + extra_energy*balancing_price # sold => +
+          
+          da_revenue[k] = contracted[k]*schedule[k]
+          ba_revenue[k] = extra_energy*balancing_price
+          revenues[k] = da_revenue[k] + ba_revenue[k] # sold => +
           
           down_regulation_costs = down_regulation_costs + extra_energy*balancing_price
           surplus = surplus + extra_energy
@@ -151,7 +181,10 @@ balancing = function(contracted, measure, schedule, reg_up, reg_down)
           # shortage : I am not helping => will get penalized 
           hours_handicp_syst = hours_handicp_syst + 1
           missing_energy = contracted[k]-measure[k]
-          revenues[k] = contracted[k]*schedule[k] - missing_energy*schedule[k] # bought => -
+          
+          da_revenue[k] = contracted[k]*schedule[k]
+          ba_revenue[k] = - missing_energy*schedule[k] # bought => -
+          revenues[k] = da_revenue[k] + ba_revenue[k]
           
           up_regulation_costs = up_regulation_costs + missing_energy*schedule[k]
           shortage = shortage + missing_energy
@@ -159,17 +192,24 @@ balancing = function(contracted, measure, schedule, reg_up, reg_down)
           # I am "helping" / not rewarded
           hours_helpg_syst = hours_helpg_syst + 1
           well_spotted = well_spotted + 1
-          revenues[k] = contracted[k]*schedule[k]
+          
+          da_revenue[k] = contracted[k]*schedule[k]
+          ba_revenue[k] = 0
+          revenues[k] = da_revenue[k]  # bought => -
         }
-      }else 
-      {
-        revenues[k] = NA
-        #cat(paste0("I am not schedule : ", k))
-      } # we are NOT scheduled => no revenues ! 
-    } 
+      }
+    }else 
+    {
+      da_revenue[k] = NA
+      ba_revenue[k] = NA
+      revenues[k] = NA
+      cat(paste0("Day : ", day, " - I am not scheduled at h : ", k), "\n")
+    } # we are NOT scheduled => no revenues ! 
   }
   
-  results = list(revenues = revenues, 
+  results = list(da_revenue = da_revenue,
+                 ba_revenue = ba_revenue,
+                 revenues = revenues,  # sum of the previous two
                  surplus = surplus,
                  shortage = shortage,
                  down_regulation_costs = down_regulation_costs,

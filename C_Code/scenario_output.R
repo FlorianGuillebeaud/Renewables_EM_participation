@@ -19,7 +19,7 @@ setwd("~/Documents/DTU/B_Semester-2/31761_Renew_ElectricityMarkets/Assignments/A
 scenario_output = function(scenario, data_wp, elspot_price_2017, regulating_prices_2017, plot_results)
 {
   measured_rem = 0 # count to calculate CF a posteriori
-  revenues = matrix(0,nrow = 1, ncol = 24)
+  revenues = ba_revenue = da_revenue = matrix(0,nrow = 1, ncol = 24)
   balancing_quantities =  matrix(0,nrow = 1, ncol = 5)
   hours_helpg_syst = hours_handicp_syst = 0 
   
@@ -49,11 +49,15 @@ scenario_output = function(scenario, data_wp, elspot_price_2017, regulating_pric
     ###################################
     
     ## Scenario 1 : We bid what forecasted ##
-    if (scenario == 1) contracted = as.numeric(matrix(wp_next_day$fore, 1 ,24))/10^3 # MWh
-    
+    if (scenario == 1){ 
+      contracted = as.numeric(matrix(wp_next_day$fore, 1 ,24))/10^3 # MWh
+      contracted_leg = "forecasted"
+    } 
     ## Scenario 2 : Perfect forecast ## 
-    if (scenario == 2) contracted = as.numeric(matrix(wp_next_day$meas, 1, 24))/10^3 # MWh
-    
+    if (scenario == 2) {
+      contracted = as.numeric(matrix(wp_next_day$meas, 1, 24))/10^3 # MWh
+      contracted_leg = "perfect forecast"
+    }
     ## Scenario 3 : Persistence forecast (using the last measured power value at 11h)
     if (scenario == 3){
       if (i==1) {
@@ -65,13 +69,33 @@ scenario_output = function(scenario, data_wp, elspot_price_2017, regulating_pric
         index_last_meas = index_next_day-28-1
         contracted = rep(as.numeric(matrix(data_wp[index_last_meas,]$meas,1,1))/10^3,24)
       }
+      contracted_leg = "persistence forecast"
     }
     
     ## Scenario 4 : Random bid between 0 and 20 MW
-    if (scenario == 4) contracted = runif(24,0,20) # MW
+    if (scenario == 4) {
+      contracted = runif(24,0,80) # MW
+      contracted_leg = "Random bid"
+    }
     
     ## Scenario 5 : We bid a constant amount based on an estimated CF=0.5 ## 
-    if (scenario == 5) contracted = rep(80,24)
+    if (scenario == 5) {
+      contracted = rep(80,24)
+      contracted_leg = "CF x maxProd"
+    }
+    
+    ## Scenario 6 : We bid the median (0.5 quantile) ## 
+    if (scenario == 6) {
+      contracted = as.numeric(matrix(wp_next_day$quantile.q50),1,1)
+      contracted_leg = "Median (0.5 quantile)"
+    }
+    
+    ## Scenario 7 : We bid the best quantile
+    if (scenario == 7) {
+      contracted = as.numeric(matrix(wp_next_day$fore), 1,1)
+      contracted = get_best_quantile(contracted)
+    }
+    
     
     ###################################
     ###################################
@@ -129,26 +153,30 @@ scenario_output = function(scenario, data_wp, elspot_price_2017, regulating_pric
       
       plot(1:24,contracted, col = "red", type = "o", ylim = c(min(contracted,measured),max(contracted,measured)), ylab = "power [MW]", xlab = "Time of the day [h]")
       points(1:24, measured, col = "black", type = "o")
-      legend("topright", legend = c("measurements","contracted = forecast" ), col = c("black", "red"),
+      legend("topright", legend = c("measurements",paste0("contracted = ", contracted_leg )), col = c("black", "red"),
              pch = "o", lty = 1)
       title(main = paste0("Date of interest : ", date_bidded))
     }
     
     # Balancing market clearing
-    balancing_results = balancing( contracted = contracted, 
+    balancing_results = balancing( day = i,
+                                   contracted = contracted, 
                                    measure = measured,
                                    schedule = schedule,
                                    reg_up = reg_up,
                                    reg_down = reg_down)
     
     # Performance ratio
-    pr = performance_ratio(contracted = contracted,
+    pr = performance_ratio(day = i ,
+                           contracted = contracted,
                            measure = measured,
                            schedule = schedule,
                            reg_up = reg_up,
                            reg_down = reg_down)
     
     # We remember the revenue generated hourly
+    new_da_revenue = balancing_results$da_revenue
+    new_ba_revenue = balancing_results$ba_revenue
     new_revenues = balancing_results$revenues
     
     new_surplus = balancing_results$surplus
@@ -164,10 +192,14 @@ scenario_output = function(scenario, data_wp, elspot_price_2017, regulating_pric
     
     
     if (i==1){
+      da_revenue = rbind(new_da_revenue)
+      ba_revenue = rbind(new_ba_revenue)
       revenues = rbind(new_revenues)
       balancing_quantities = rbind(new_balancing_quantities)
     }
     else {
+      da_revenue = rbind(da_revenue,new_da_revenue)
+      ba_revenue = rbind(ba_revenue, new_ba_revenue)
       revenues = rbind(revenues, new_revenues)    
       balancing_quantities = rbind(balancing_quantities, new_balancing_quantities)
     }
@@ -192,13 +224,16 @@ scenario_output = function(scenario, data_wp, elspot_price_2017, regulating_pric
   ###################################
   ###################################
   # Sort the results into one table
-  balancing_quantities = data.frame(surplus = balancing_quantities[,1],
+  balancing_quantities = data.frame(total_prod = measured_rem,
+                                    surplus = balancing_quantities[,1],
                                     shortage = balancing_quantities[,2],
                                     down_regulation_costs = balancing_quantities[,3],
                                     up_regulation_costs = balancing_quantities[,4],
                                     performance_ratio = balancing_quantities[,5])
   
-  results = list(revenues_hourly = revenues,
+  results = list(da_revenue_hourly = da_revenue,
+                 ba_revenue_hourly = ba_revenue,
+                 revenues_hourly = revenues,
                  daily_revenue = rowSums(revenues),
                  balancing_quantities = balancing_quantities,
                  total_surplus = total_surplus,
@@ -209,38 +244,3 @@ scenario_output = function(scenario, data_wp, elspot_price_2017, regulating_pric
                  av_up_regulation_unit_costs = av_up_regulation_unit_costs,
                  CF_aposteriori = CF)
 }
-###################################
-###################################
-# Print some plots
-
-stop('plots later')
-par(mar = c(6, 4.5,2, 2)) 
-if (sum(balancing_quantities$surplus, na.rm = TRUE) > sum(balancing_quantities$shortage, na.Rm = TRUE)){
-  plot(balancing_quantities$surplus, type = 'h', lwd = 4, ylim = c(0, max(balancing_quantities$surplus,balancing_quantities$shortage)+50),
-       xlab = "Days in 2017", ylab = "Energy [MWh]")
-  lines(balancing_quantities$shortage, col = "grey", type ="h", lwd = 4)
-  legend("topleft", legend = c("Surplus","Shortage"), col = c("black", "grey"), lty = 1, lwd = 4)
-  title(main = "Bid the forecast !")
-} else{
-  plot(balancing_quantities$shortage, col = "black", type = 'h', lwd = 4, ylim = c(0, max(balancing_quantities$surplus,balancing_quantities$shortage)+50),
-       xlab = "Days in 2017", ylab = "Energy [MWh]")
-  lines(balancing_quantities$surplus, col = "grey", type ="h", lwd = 4)
-  legend("topleft", legend = c("Surplus","Shortage"), col = c("grey","black"), lty = 1, lwd = 4)
-  title(main = "Bid the forecast !")
-  
-} 
-
-# Figures
-helping = round(hours_helpg_syst/((length(dati_to_consider)-1)*24)*100, digits = 2)
-handicp = round(hours_handicp_syst/((length(dati_to_consider)-1)*24)*100, digits = 2)
-slices = c(helping, handicp)
-lbls = c(paste0("surplus : ", helping, " %"), paste0("shortage : ", handicp, " %"))
-par(mar = c(5, 5,4, 5))
-pie(slices, lbls, main = "2017 : scenario 1", col=c("blue", "grey"))
-
-# Revenues
-plot(1:24,colMeans(revenues, na.rm = TRUE), type = "h", lwd = 5, 
-     ylim = c(0, min(colMeans(revenues), na.rm = TRUE)),
-     xlab = "Hour of the day [h]", ylab = "Average revenues [DKK]")
-title(main = "Hourly average of revenue generation in 2017")
-

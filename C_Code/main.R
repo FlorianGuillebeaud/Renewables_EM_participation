@@ -6,6 +6,11 @@
 
 setwd("~/Documents/DTU/B_Semester-2/31761_Renew_ElectricityMarkets/Assignments/Assignment2")
 
+
+###################################
+###################################
+library("forecast")
+
 ###################################
 ###################################
 
@@ -30,24 +35,36 @@ scenario1 = scenario_output(1, data_wp, elspot_price_2017, regulating_prices_201
 scenario2 = scenario_output(2, data_wp, elspot_price_2017, regulating_prices_2017, plot_results = TRUE)
 
 ## Scenario 3 : Persistence forecast (using the last measured power value at 11h)
-scenario3 = scenario_output(3, data_wp, elspot_price_2017, regulating_prices_2017, plot_results = FALSE)
+scenario3 = scenario_output(3, data_wp, elspot_price_2017, regulating_prices_2017, plot_results = TRUE)
 
-## Scenario 4 : Random bid between 0 and 20 MW
-scenario4 = scenario_output(4, data_wp, elspot_price_2017, regulating_prices_2017, plot_results = FALSE)
+## Scenario 4 : Random bid between 0 and CF*MaxProd MW
+scenario4 = scenario_output(4, data_wp, elspot_price_2017, regulating_prices_2017, plot_results = TRUE)
 
 ## Scenario 5 : We bid a constant amount based on an estimated CF ## 
 scenario5 = scenario_output(5, data_wp, elspot_price_2017, regulating_prices_2017, plot_results = TRUE)
 
+## Scenario 6 : We bid the median (0.5 quantile) ## 
+scenario6 = scenario_output(6, data_wp, elspot_price_2017, regulating_prices_2017, plot_results = TRUE)
+
+## Scenario 7 : using the otpimal quantile
+scenario7 = scenario_output(7, data_wp, elspot_price_2017, regulating_prices_2017, plot_results = TRUE)
 
 
 ##################################
 ## Post traitement Scenarios ## 
 ###################################
 
-scenario2$
-
-
-
+# Maximum we can get 
+plot((rowMeans(scenario2$revenues_hourly)/10^3)[1:31], ylim = c(0,40),
+     type = 'h', lwd = 20, xlab = "Time [Days]", ylab = "Revenue [k€]")
+title(main="Revenue in January 2017")
+# Compare to our scenarios
+lines((rowMeans(scenario1$revenues_hourly)/10^3)[1:31], type = 'h', lwd = 17, col = "grey")
+lines((rowMeans(scenario3$revenues_hourly)/10^3)[1:31], type = 'h', lwd = 14, col = "yellow")
+lines((rowMeans(scenario4$revenues_hourly)/10^3)[1:31], type = 'h', lwd = 11, col = "green")
+lines((rowMeans(scenario5$revenues_hourly)/10^3)[1:31], type = 'h', lwd = 8, col = "blue")
+legend("topright", legend = c("Perfect forecast", "Believe in forecast", "Persistence forecast", "Random bid using CF=0.5", "Constant bid using CF=0.5"),
+       col = c("black", "grey", "yellow", "green", "blue"), lty = 1, lwd = c(20,17,14,11,8), cex = 0.75)
 
 ###################################
 ###################################
@@ -60,6 +77,34 @@ legend("bottomleft", legend = c(paste0("2016 / mean price : ", round(mean(elspot
                                 paste0("2017 / mean price : ", round(mean(elspot_price_2017$DK1[1:N], na.rm = TRUE), digits = 2), " DKK/MWh")), col = c("black", "blue"), lty = 1)
 title(main = "Electricity Spot Price in DK1")
 
+# Hourly tendancy
+temp_elspot = vector() # matrix(0,ncol = 24, nrow = length(seq(1,length(elspot_price_2016$DK1), 24)))
+temp_up = temp_dw = vector() # matrix(0,ncol = 24, nrow = length(seq(1,length(regulating_prices_2016), 24)))
+
+for (i in seq(1,length(elspot_price_2016$DK1), 24)){
+  temp_elspot = rbind(temp_elspot,elspot_price_2016$DK1[i:(i+23)])
+  temp_up = rbind(temp_up, regulating_prices_2016$DK1_UP[i:(i+23)])
+  temp_dw = rbind(temp_dw, regulating_prices_2016$DK1_DOWN[i:(i+23)])
+}
+
+hourly_av_spot_2016 = colMeans(temp_elspot[,1:24])
+hourly_av_up = colMeans(temp_up[,1:24])
+hourly_av_dw = colMeans(temp_dw[,1:24])
+plot(1:24, hourly_av_spot_2016, type = "o", 
+     ylim = c(min(hourly_av_spot_2016, hourly_av_up, hourly_av_dw), max(hourly_av_spot_2016, hourly_av_up, hourly_av_dw)),
+     col = "blue", xlab = "Time [h]", ylab = "Price [DKK/MWh]", lwd = 2)
+points(1:24, hourly_av_up, col = "red", pch = 3, lwd = 2)
+lines(1:24, hourly_av_up, col = "red", lwd = 2)
+points(1:24, hourly_av_dw, col = "darkorange", pch = 3, lwd = 2)
+lines(1:24, hourly_av_dw,  col = "darkorange", lwd = 2)
+
+plot(1:24, apply(temp_elspot, 2 , sd), type = "o",
+     ylim = c(min(apply(temp_elspot,2,sd), apply(temp_up,2,sd),apply(temp_dw,2,sd)), max(apply(temp_elspot,2,sd), apply(temp_up,2,sd),apply(temp_dw,2,sd))),
+     col = "blue", xlab = "Time [h]", ylab = "Standard deviation [DKK/MWh]", lwd = 2)
+points(1:24, apply(temp_up, 2 , sd), col = "red", pch = 3, lwd = 2)
+lines(1:24, apply(temp_up, 2 , sd), col = "red", lwd = 2)
+points(1:24, apply(temp_dw, 2 , sd),  col = "darkorange", pch = 3, lwd = 2)
+lines(1:24,  apply(temp_dw, 2 , sd),  col = "darkorange", lwd = 2)
 
 ###################################
 ###################################
@@ -88,7 +133,7 @@ wind_meas_date = eval(data_wp[data_wp$date_daily==date,]$meas)
 
 # Balancing Price market for this date
 plot(price_date,type = "o", ylim = c(min(reg_date_up,reg_date_down, price_date, na.rm = TRUE), max(reg_date_up, reg_date_down, price_date, na.rm = TRUE)),
-     xlab = "Hour of the day [h]", ylab = "DKK/MWh", lty = 1, lwd = 2)
+     xlab = "Program Time Unit [h]", ylab = "DKK/MWh", lty = 1, lwd = 2)
 points(reg_date_up, col = "blue", type = "o", lty = 2 )
 points(reg_date_down, col ="red", type ="o", lty = 2)
 legend("topleft", legend = c("Spot price", "Up-reg. price", "Down-reg. price"), 

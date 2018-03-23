@@ -19,10 +19,12 @@ source("C_Code/read_elspot.R") # ! price is given in DKK/MWh
 source("C_Code/read_regulations.R")
 
 source("C_Code/get_schedule.R")
-source("C_Code/balancing.R")
+source("C_Code/balancing_new.R")
 source("C_Code/performance_ratio.R")
-
+source("C_Code/get_best_quantile.R")
+source("C_Code/quantile_distribution.R")
 source("C_Code/scenario_output.R")
+source("C_Code/plot_quantile.R")
 
 ###################################
 ## Quantity Bid ## 
@@ -33,13 +35,19 @@ scenario1 = scenario_output(1, data_wp, elspot_price_2017, regulating_prices_201
 
 ## Scenario 2 : Perfect forecast ## 
 scenario2 = scenario_output(2, data_wp, elspot_price_2017, regulating_prices_2017, plot_results = TRUE)
+ideal_revenue = sum(scenario2$revenues_hourly, na.rm = TRUE)
 
-## Scenario 3 : Persistence forecast (using the last measured power value at 11h)
+## Scenario 3 : Persistence forecast (using the last power measurement value at 11h)
 scenario3 = scenario_output(3, data_wp, elspot_price_2017, regulating_prices_2017, plot_results = TRUE)
 
-## Scenario 4 : Random bid between 0 and CF*MaxProd MW
-scenario4 = scenario_output(4, data_wp, elspot_price_2017, regulating_prices_2017, plot_results = TRUE)
-
+## Scenario 4 : Random bid between 0 and MaxProd MW
+actual_revenue = pf = vector()
+for (j in 1:100){
+  cat(paste0("round : ", j ), "\n")
+  scenario4 = scenario_output(4, data_wp, elspot_price_2017, regulating_prices_2017, plot_results = FALSE)
+  actual_revenue[j] = sum(scenario4$revenues_hourly, na.rm = TRUE)
+  pf[j] = actual_revenue[j]/ideal_revenue
+}
 ## Scenario 5 : We bid a constant amount based on an estimated CF ## 
 scenario5 = scenario_output(5, data_wp, elspot_price_2017, regulating_prices_2017, plot_results = TRUE)
 
@@ -63,12 +71,51 @@ lines((rowMeans(scenario1$revenues_hourly)/10^3)[1:31], type = 'h', lwd = 17, co
 lines((rowMeans(scenario3$revenues_hourly)/10^3)[1:31], type = 'h', lwd = 14, col = "yellow")
 lines((rowMeans(scenario4$revenues_hourly)/10^3)[1:31], type = 'h', lwd = 11, col = "green")
 lines((rowMeans(scenario5$revenues_hourly)/10^3)[1:31], type = 'h', lwd = 8, col = "blue")
+# lines((rowMeans(scenario6$revenues_hourly)/10^3)[1:31], type = 'h', lwd = 8, col = "blue")
+# lines((rowMeans(scenario7$revenues_hourly)/10^3)[1:31], type = 'h', lwd = 8, col = "blue")
 legend("topright", legend = c("Perfect forecast", "Believe in forecast", "Persistence forecast", "Random bid using CF=0.5", "Constant bid using CF=0.5"),
        col = c("black", "grey", "yellow", "green", "blue"), lty = 1, lwd = c(20,17,14,11,8), cex = 0.75)
 
 ###################################
 ###################################
+# Cumulative revenue plot 
+scenario1$revenues_hourly[is.na(scenario1$revenues_hourly)] <- 0
+scenario2$revenues_hourly[is.na(scenario2$revenues_hourly)] <- 0
+scenario3$revenues_hourly[is.na(scenario3$revenues_hourly)] <- 0
+scenario4$revenues_hourly[is.na(scenario4$revenues_hourly)] <- 0
+scenario5$revenues_hourly[is.na(scenario5$revenues_hourly)] <- 0
+scenario6$revenues_hourly[is.na(scenario6$revenues_hourly)] <- 0
+scenario7$revenues_hourly[is.na(scenario7$revenues_hourly)] <- 0
 
+# plot the optimal first
+plot((cumsum(scenario2$revenues_hourly)/10^7)[0:200], type = 'l')
+lines((cumsum(scenario1$revenues_hourly)/10^7)[0:200], type = 'l', lty = 2, col = "red")
+lines(cumsum(scenario3$revenues_hourly)/10^7, type = 'l', lty = 2, col = "green")
+lines(cumsum(scenario4$revenues_hourly)/10^7, type = 'l', col = "blue")
+lines(cumsum(scenario5$revenues_hourly)/10^7, type = 'l', col = "orange")
+lines(cumsum(scenario6$revenues_hourly)/10^7, type = 'l', lty = 2, col = "yellow")
+lines(cumsum(scenario7$revenues_hourly)/10^7, type = 'l', col = "purple")
+
+###################################
+###################################
+# Cumulative balancing / day ahead revenue plot 
+scenario1$da_revenue_hourly[is.na(scenario1$da_revenue_hourly)] <- 0
+scenario1$ba_revenue_hourly[is.na(scenario1$ba_revenue_hourly)] <- 0
+scenario2$da_revenue_hourly[is.na(scenario2$da_revenue_hourly)] <- 0
+scenario2$ba_revenue_hourly[is.na(scenario2$ba_revenue_hourly)] <- 0
+scenario7$da_revenue_hourly[is.na(scenario7$da_revenue_hourly)] <- 0
+scenario7$ba_revenue_hourly[is.na(scenario7$ba_revenue_hourly)] <- 0
+
+plot(cumsum(scenario1$da_revenue_hourly)/10^7, ylim = c(-2,15), type = 'l')
+abline(h=0)
+lines(cumsum(scenario1$ba_revenue_hourly)/10^7, type = 'l')
+lines(cumsum(scenario2$da_revenue_hourly)/10^7, type = 'l', col = "green")
+lines(cumsum(scenario2$ba_revenue_hourly)/10^7, type = 'l', col = "green")
+lines(cumsum(scenario7$da_revenue_hourly)/10^7, type = 'l', col = "red")
+lines(cumsum(scenario7$ba_revenue_hourly)/10^7, type = 'l', col = "red")
+
+###################################
+###################################
 # SPOT PRICES
 N = min(length(elspot_price_2016$DK1), length(elspot_price_2017$DK1))
 plot(1:N, elspot_price_2016$DK1[1:N], type = "l", xlab = "Time [h]", ylab = "[DKK/MWh]")
@@ -86,6 +133,9 @@ for (i in seq(1,length(elspot_price_2016$DK1), 24)){
   temp_up = rbind(temp_up, regulating_prices_2016$DK1_UP[i:(i+23)])
   temp_dw = rbind(temp_dw, regulating_prices_2016$DK1_DOWN[i:(i+23)])
 }
+temp_elspot[is.na(temp_elspot)] <- 0
+temp_up[is.na(temp_up)] <- 0
+temp_dw[is.na(temp_dw)] <- 0
 
 hourly_av_spot_2016 = colMeans(temp_elspot[,1:24])
 hourly_av_up = colMeans(temp_up[,1:24])

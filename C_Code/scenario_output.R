@@ -18,6 +18,7 @@ setwd("~/Documents/DTU/B_Semester-2/31761_Renew_ElectricityMarkets/Assignments/A
 
 scenario_output = function(scenario, data_wp, elspot_price_2017, regulating_prices_2017, plot_results)
 {
+  NA_values = 0 # count how many missing values are encountered
   measured_rem = 0 # count to calculate CF a posteriori
   revenues = ba_revenue = da_revenue = matrix(0,nrow = 1, ncol = 24)
   balancing_quantities =  matrix(0,nrow = 1, ncol = 5)
@@ -40,6 +41,9 @@ scenario_output = function(scenario, data_wp, elspot_price_2017, regulating_pric
     
     # assign the wind predictions for next day
     wp_next_day = data_wp[(index_next_day-1):(index_next_day+22),]
+    NA_values = NA_values + sum(is.na(wp_next_day$fore)==TRUE)
+    
+    # if(sum(is.na(wp_next_day$fore)==TRUE)>0) stop("closer look")
     
     # remember the date bidded (the following)
     date_bidded = as.numeric(matrix(noquote(wp_next_day$date_daily[1])),1,1)
@@ -68,47 +72,57 @@ scenario_output = function(scenario, data_wp, elspot_price_2017, regulating_pric
         # We take the last measured power value at 11h
         index_last_meas = index_next_day-28-1
         contracted = rep(as.numeric(matrix(data_wp[index_last_meas,]$meas,1,1))/10^3,24)
+        if (is.na(contracted)==TRUE) {
+          index_last_meas = index_next_day-28-2
+          contracted = rep(as.numeric(matrix(data_wp[index_last_meas,]$meas,1,1))/10^3,24)
+        }
+
       }
       contracted_leg = "persistence forecast"
     }
     
-    ## Scenario 4 : Random bid between 0 and 20 MW
+    ## Scenario 4 : Random bid between 0 and 160 MW
     if (scenario == 4) {
-      contracted = runif(24,0,80) # MW
+      contracted = runif(24,0,160) # MW
       contracted_leg = "Random bid"
     }
     
     ## Scenario 5 : We bid a constant amount based on an estimated CF=0.5 ## 
     if (scenario == 5) {
-      contracted = rep(80,24)
+      contracted = rep(80,24) # MW
       contracted_leg = "CF x maxProd"
     }
     
     ## Scenario 6 : We bid the median (0.5 quantile) ## 
     if (scenario == 6) {
-      contracted = as.numeric(matrix(wp_next_day$quantile.q50),1,1)
+      contracted = as.numeric(matrix(wp_next_day$quantile.q50),1,1)/10^3
       contracted_leg = "Median (0.5 quantile)"
     }
     
     ## Scenario 7 : We bid the best quantile
     if (scenario == 7) {
+      
+      
+      
+      
       contracted = as.numeric(matrix(wp_next_day$fore), 1,1)
-      contracted = get_best_quantile(contracted)
+      contracted = get_best_quantile(contracted, wp_next_day)/10^3
+      contracted_leg = "best Quantile"
     }
     
     
     ###################################
     ###################################
     # in case of NA values
-    contracted[is.na(contracted)] <- 0
+    # contracted[is.na(contracted)] <- 0
     
     # what we actually produced
     measured = as.numeric(matrix(wp_next_day$meas,1,24))/10^3 # MWh
     # in case of NA values
-    measured[is.na(measured)] <- 0
+    # measured[is.na(measured)] <- 0
     
     # we remember the measures to compute the a-posteriori CF
-    measured_rem = measured_rem + sum(measured)
+    measured_rem = measured_rem + sum(measured, na.rm = TRUE)
     
     # the prices we bid 
     bid_price = rep(0,24)
@@ -119,7 +133,7 @@ scenario_output = function(scenario, data_wp, elspot_price_2017, regulating_pric
     for (j in 2:(length(elspot)-1)){
       if(is.na(elspot[j])==TRUE) {
         elspot[j] = 0.5*(elspot[j-1]+elspot[j+1])
-        cat(paste0("Missing value in the spot price dataset : index ", j), "\n")
+        # cat(paste0("Missing value in the spot price dataset : index ", j), "\n")
       }
     }
     
@@ -128,13 +142,13 @@ scenario_output = function(scenario, data_wp, elspot_price_2017, regulating_pric
     for (j in 1:length(reg_down)){ 
       if(is.na(reg_down[j])==TRUE){
         reg_down[j]<-elspot[j] # if reg_price missing : it's assumed it's spot_price
-        cat(paste0("Missing value in the regulating down dataset : index ", j), "\n")
+        # cat(paste0("Missing value in the regulating down dataset : index ", j), "\n")
       }}
     reg_up = regulating_prices_2017[regulating_prices_2017$date_daily==date_bidded,]$DK1_UP
     for (j in 1:length(reg_up)){ 
       if(is.na(reg_up[j])==TRUE){
         reg_up[j]<-elspot[j] # if reg_price missing : it's assumed it's spot_price
-        cat(paste0("Missing value in the regulating up dataset : index ", j), "\n")
+        # cat(paste0("Missing value in the regulating up dataset : index ", j), "\n")
       }}
     
     # Are we scheduled ?
@@ -151,17 +165,21 @@ scenario_output = function(scenario, data_wp, elspot_price_2017, regulating_pric
              col = c("black", "red", "blue"), lty = c(1,4,2), pch = "o", cex = 0.75)
       title(main = paste0("Date of interest : ", date_bidded))
       
-      plot(1:24,contracted, col = "red", type = "o", ylim = c(min(contracted,measured),max(contracted,measured)), ylab = "power [MW]", xlab = "Time of the day [h]")
+      plot(1:24,contracted, col = "red", type = "o", ylim = c(min(contracted,measured, na.rm = TRUE),max(contracted,measured, na.rm = TRUE)), ylab = "power [MW]", xlab = "Time of the day [h]")
       points(1:24, measured, col = "black", type = "o")
       legend("topright", legend = c("measurements",paste0("contracted = ", contracted_leg )), col = c("black", "red"),
              pch = "o", lty = 1)
       title(main = paste0("Date of interest : ", date_bidded))
+      
+      if (scenario == 7){
+        plot_quantile(wp_next_day, date_bidded, contracted, i)
+      } 
     }
     
     # Balancing market clearing
-    balancing_results = balancing( day = i,
+    balancing_results = balancing( i = i,
                                    contracted = contracted, 
-                                   measure = measured,
+                                   measured = measured,
                                    schedule = schedule,
                                    reg_up = reg_up,
                                    reg_down = reg_down)
@@ -224,14 +242,15 @@ scenario_output = function(scenario, data_wp, elspot_price_2017, regulating_pric
   ###################################
   ###################################
   # Sort the results into one table
-  balancing_quantities = data.frame(total_prod = measured_rem,
-                                    surplus = balancing_quantities[,1],
+  balancing_quantities = data.frame(surplus = balancing_quantities[,1],
                                     shortage = balancing_quantities[,2],
                                     down_regulation_costs = balancing_quantities[,3],
                                     up_regulation_costs = balancing_quantities[,4],
                                     performance_ratio = balancing_quantities[,5])
   
-  results = list(da_revenue_hourly = da_revenue,
+  results = list(missing_values = NA_values,
+                 total_prod = measured_rem,
+                 da_revenue_hourly = da_revenue,
                  ba_revenue_hourly = ba_revenue,
                  revenues_hourly = revenues,
                  daily_revenue = rowSums(revenues),

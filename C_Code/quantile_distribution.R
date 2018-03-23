@@ -1,3 +1,9 @@
+## Assignment 2 ## 
+## Renewables in electricity market ## 
+## Author : Florian Guillebeaud ## 
+###################################
+###################################
+
 # Get distribution 
 
 quantile_distribution = function(wp_next_day){

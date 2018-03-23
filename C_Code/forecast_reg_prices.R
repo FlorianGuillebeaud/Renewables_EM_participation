@@ -67,9 +67,6 @@ for(k in 1:length(year)){
 results = cbind(URC_up, URC_dw)
 
 
-
-
-
 ###################################
 ###################################
 hour_dw = hour_up = vector()

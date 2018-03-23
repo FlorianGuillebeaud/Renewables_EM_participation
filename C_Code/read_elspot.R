@@ -7,95 +7,42 @@
 # read elspot prices in DK1 in 2016 and 2017
 library(readxl)
 
-elspot_price_2013 = read_excel("D_Data/prediction/elspot_price_13.xlsx", skip = 2)
-# change the date "2013-MM-DD" into "2013MMDDi" where i is the hour
-a = noquote(paste0(elspot_price_2013$X__1[1:(length(elspot_price_2013$X__1))]))
-a_daily = gsub(a,pattern = "-", replacement = "")
-a_daily = a_daily[-7297]
-hour = vector()
-for (i in 1:length(a_daily)){
-  hour[i] = i%%24
-}
-a_hourly = paste0(a_daily,hour)
-a_monthly = sub("^(\\d{6}).*$", "\\1", a_daily)
-
-# return it in a data frame
-elspot_price_2013 = data.frame(date_monthly = a_monthly, date_daily = a_daily, date_hourly = a_hourly, DK1 = elspot_price_2013$DK1[1:(length(elspot_price_2013$X__1)-1)])
-
-
 ###################################
 ###################################
+elspot_price_2016 =  read_excel("D_Data/elspot_price_16.xlsx", skip = 2)
 
-
-elspot_price_2014 = read_excel("D_Data/prediction/elspot_price_14.xlsx", skip = 2)
-# change the date "2013-MM-DD" into "2013MMDDi" where i is the hour
-a = noquote(paste0(elspot_price_2014$X__1[1:(length(elspot_price_2014$X__1))]))
-a_daily = gsub(a,pattern = "-", replacement = "")
-a_daily = a_daily[-7297]
-hour = vector()
-for (i in 1:length(a_daily)){
-  hour[i] = i%%24
-}
-a_hourly = paste0(a_daily,hour)
-a_monthly = sub("^(\\d{6}).*$", "\\1", a_daily)
-
-# return it in a data frame
-elspot_price_2014 = data.frame(date_monthly = a_monthly, date_daily = a_daily, date_hourly = a_hourly, DK1 = elspot_price_2014$DK1[1:(length(elspot_price_2014$X__1)-1)])
-
-
-###################################
-###################################
-
-elspot_price_2015 = read_excel("D_Data/prediction/elspot_price_15.xlsx", skip = 2)
-# change the date "2013-MM-DD" into "2013MMDDi" where i is the hour
-a = noquote(paste0(elspot_price_2015$X__1[1:(length(elspot_price_2015$X__1))]))
-a_daily = gsub(a,pattern = "-", replacement = "")
-a_daily = a_daily[-7297]
-hour = vector()
-for (i in 1:length(a_daily)){
-  hour[i] = i%%24
-}
-a_hourly = paste0(a_daily,hour)
-a_monthly = sub("^(\\d{6}).*$", "\\1", a_daily)
-
-# return it in a data frame
-elspot_price_2015 = data.frame(date_monthly = a_monthly, date_daily = a_daily, date_hourly = a_hourly, DK1 = elspot_price_2015$DK1[1:(length(elspot_price_2015$X__1)-1)])
-
-
-###################################
-###################################
-
-elspot_price_2016 = read_excel("D_Data/elspot_price_16.xlsx", skip = 2)
+# Changement d'heure pb 
+elspot_price_2016$DK1[2067] = (elspot_price_2016$DK1[2066]+elspot_price_2016$DK1[2068])/2
 # change the date "2016-MM-DD" into "2016MMDDi" where i is the hour
 a = noquote(paste0(elspot_price_2016$X__1[1:(length(elspot_price_2016$X__1))]))
 a_daily = gsub(a,pattern = "-", replacement = "")
-a_daily = a_daily[-7297]
 hour = vector()
-for (i in 1:length(a_daily)){
-  hour[i] = i%%24
+for (i in 1:length(elspot_price_2016$DK1)){
+  if(i%%24 == 0) hour[i] = i%%24
+  else  hour[i] = i%%24
 }
 a_hourly = paste0(a_daily,hour)
 a_monthly = sub("^(\\d{6}).*$", "\\1", a_daily)
 
-new_elspot_price_2016 = elspot_price_2016$DK1[-7297]
 # return it in a data frame
-elspot_price_2016 = data.frame(date_monthly = a_monthly, date_daily = a_daily, date_hourly = a_hourly, DK1 = elspot_price_2016$DK1[1:(length(elspot_price_2016$X__1)-1)])
+elspot_price_2016 = data.frame(date_monthly = a_monthly, date_daily = a_daily, date_hourly = a_hourly, DK1 = elspot_price_2016$DK1[1:length(elspot_price_2016$X__1)])
 
 ###################################
 ###################################
 
 elspot_price_2017 = read_excel("D_Data/elspot_price_17.xlsx", skip = 2)
+# Changement d'heure pb 
+elspot_price_2017$DK1[2019] = (elspot_price_2017$DK1[2018]+elspot_price_2017$DK1[2020])/2
 # change the date "2016-MM-DD" into "2016MMDDi" where i is the hour
 b = noquote(paste0(elspot_price_2017$X__1[1:(length(elspot_price_2017$X__1))]))
 b_daily = gsub(b,pattern = "-", replacement = "")
-b_daily = b_daily[-7249]
 hour = vector()
-for (i in 1:length(b_daily)){
-  hour[i] = i%%24
+for (i in 1:length(elspot_price_2017$DK1)){
+  if(i%%24 == 0) hour[i] = i%%24
+  else  hour[i] = i%%24
 }
 b_hourly = paste0(b_daily, hour)
 b_monthly = sub("^(\\d{6}).*$", "\\1", b_daily)
 
-new_elspot_price_2017 = elspot_price_2017$DK1[-7249]
 # return it in a data frame
-elspot_price_2017 = data.frame(date_monthly = b_monthly, date_daily = b_daily, date_hourly = b_hourly, DK1 = new_elspot_price_2017)
+elspot_price_2017 = data.frame(date_monthly = b_monthly, date_daily = b_daily, date_hourly = b_hourly, DK1 = elspot_price_2017$DK1)
